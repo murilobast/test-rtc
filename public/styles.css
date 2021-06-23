@@ -1,0 +1,39 @@
+html, body {
+  font-family: Helvetica, Arial, sans-serif;
+  color: #f8f8f8;
+  background-color: #333;
+}
+
+#title {
+  font-size: 32px;
+}
+
+#main {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#video-grid {
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+video {
+  width: 280px;
+  height: 280px;
+  object-fit: cover;
+  border-radius: 5%;
+  margin: 12px;
+  border: 2px solid #f8f8f8;
+}
+
+.me {
+  border-color: #6983d6;
+}
