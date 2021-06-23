@@ -5,26 +5,38 @@ const mainPeer = new Peer(undefined, {
   port: '3001'
 })
 const videolElement = document.createElement('video')
-videolElement.muted = true
 const peers = {}
+const filters = ['unset', 'sepia(1)', 'grayscale(1)', 'hue-rotate(300deg)', 'invert(1)'];
+let currentFilterIndex = 0;
+
+videolElement.muted = true
+videolElement.classList.add('me')
+
+videolElement.addEventListener('click', () => {
+  currentFilterIndex = currentFilterIndex < filters.length - 1 ? currentFilterIndex + 1 : 0
+  const currentFilter = filters[currentFilterIndex];
+  console.log('currentFilter', currentFilter)
+  videolElement.style.filter = currentFilter
+})
 
 navigator.mediaDevices.getUserMedia({
   video: true,
   audio: true
 }).then(stream => {
-  addVideoStream(videolElement, stream)
+  addUserVideoStream(videolElement, stream)
 
   mainPeer.on('call', call => {
     call.answer(stream)
     const video = document.createElement('video')
+
     call.on('stream', userVideoStrem => {
-      addVideoStream(video, userVideoStrem)
+      addUserVideoStream(video, userVideoStrem)
     })
   })
 
   socket.on('user-connected', userId => {
     console.log('user connected', userId)
-    connectToNewUser(userId, stream)
+    makeUserConnection(userId, stream)
   })
 })
 
@@ -37,7 +49,7 @@ mainPeer.on('open', id => {
   socket.emit('join-room', ROOM_ID, id)
 })
 
-function addVideoStream(video, stream) {
+function addUserVideoStream(video, stream) {
   video.srcObject = stream
   video.addEventListener('loadedmetadata', () => {
     video.play()
@@ -45,13 +57,15 @@ function addVideoStream(video, stream) {
   videoGrid.append(video)
 }
 
-function connectToNewUser(userId, stream) {
+function makeUserConnection(userId, stream) {
   const call = mainPeer.call(userId, stream)
   const video = document.createElement('video')
+
   call.on('stream', userVideoStrem => {
     console.log('stream init')
-    addVideoStream(video, userVideoStrem)
+    addUserVideoStream(video, userVideoStrem)
   })
+
   call.on('close', () => {
     console.log('stream close')
     video.remove()
