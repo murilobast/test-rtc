@@ -1,50 +1,130 @@
 const socket = io('/')
 const videoGrid = document.getElementById('video-grid')
-const mainPeer = new Peer(undefined, {
-  host: '/',
-  port: '3001'
-})
 const videolElement = document.createElement('video')
-const peers = {}
 const filters = ['unset', 'sepia(1)', 'grayscale(1)', 'hue-rotate(300deg)', 'invert(1)'];
 let currentFilterIndex = 0;
 
 videolElement.muted = true
 videolElement.classList.add('me')
 
-handleFilters(videolElement)
+let peer;
+let userStream;
+let remoteUserId;
 
-function initApp() {
-  navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true
-  }).then(stream => {
-    addUserVideoStream(videolElement, stream)
-  
-    mainPeer.on('call', call => {
-      call.answer(stream)
-      const video = document.createElement('video')
-  
-      call.on('stream', userVideoStrem => {
-        addUserVideoStream(video, userVideoStrem)
-      })
-    })
-  
-    socket.on('user-connected', userId => {
-      console.log('user connected', userId)
-      makeUserConnection(userId, stream)
-    })
-  })
-  
-  socket.on('user-disconnected', userId => {
-    console.log('user disconnected', userId)
-    peers[userId]?.close()
-  })
-  
-  mainPeer.on('open', id => {
-    socket.emit('join-room', ROOM_ID, id)
-  })
+async function init() {
+  userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  videolElement.srcObject = userStream;
+
+  addUserVideoStream(videolElement, userStream)
+
+  socket.emit("join room", ROOM_ID);
+
+  socket.on('other user', userID => {
+      callUser(userID);
+      remoteUserId = userID;
+  });
+
+  socket.on("user joined", userID => {
+      remoteUserId = userID;
+  });
+
+  socket.on("offer", handleRecieveCall);
+
+  socket.on("answer", handleAnswer);
+
+  socket.on("ice-candidate", handleNewICECandidateMsg);
 }
+
+function callUser(userID) {
+  peer = createPeer(userID);
+  userStream.getTracks().forEach(track => peer.addTrack(track, userStream));
+}
+
+function createPeer(userID) {
+  const peer = new RTCPeerConnection({
+      iceServers: [
+          {
+              urls: "stun:stun.stunprotocol.org"
+          },
+          {
+              urls: 'turn:numb.viagenie.ca',
+              credential: 'muazkh',
+              username: 'webrtc@live.com'
+          },
+      ]
+  });
+
+  peer.onicecandidate = handleICECandidateEvent;
+  peer.ontrack = handleTrackEvent;
+  peer.onnegotiationneeded = () => handleNegotiationNeededEvent(userID);
+
+  return peer;
+}
+
+async function handleNegotiationNeededEvent(userID) {
+  try {
+
+    const offer = await peer.createOffer()
+    await peer.setLocalDescription(offer);
+    const payload = {
+        target: userID,
+        caller: socket.id,
+        sdp: peer.localDescription
+    };
+    socket.emit("offer", payload);
+  } catch (e) {
+    console.log('handleNegotiationNeededEvent error', e)
+  }
+}
+
+async function handleRecieveCall(incoming) {
+  peer = createPeer();
+  const desc = new RTCSessionDescription(incoming.sdp);
+  await peer.setRemoteDescription(desc)
+  userStream.getTracks().forEach(track => peer.addTrack(track, userStream));
+  const answer = await peer.createAnswer();
+  await peer.setLocalDescription(answer);
+  const payload = {
+      target: incoming.caller,
+      caller: socket.id,
+      sdp: peer.localDescription
+  }
+  socket.emit("answer", payload);
+}
+
+async function handleAnswer(message) {
+  try {
+    const desc = new RTCSessionDescription(message.sdp);
+    await peer.setRemoteDescription(desc)
+  } catch (e) {
+    console.log('handleAnswer error', e)
+  }
+}
+
+function handleICECandidateEvent(e) {
+  if (e.candidate) {
+    const payload = {
+      target: remoteUserId,
+      candidate: e.candidate,
+    }
+    socket.emit("ice-candidate", payload);
+  }
+}
+
+async function handleNewICECandidateMsg(incoming) {
+  try {
+    const candidate = new RTCIceCandidate(incoming);
+    await peer.addIceCandidate(candidate)
+  } catch (e) {
+    console.log('handleNewICECandidateMsg error', e)
+  }
+}
+
+function handleTrackEvent(e) {
+  video = document.createElement('video')
+  video.srcObject = e.streams[0];
+  addUserVideoStream(video, userStream)
+};
 
 function handleFilters(video) {
   video.addEventListener('click', () => {
@@ -63,21 +143,5 @@ function addUserVideoStream(video, stream) {
   videoGrid.append(video)
 }
 
-function makeUserConnection(userId, stream) {
-  const call = mainPeer.call(userId, stream)
-  const video = document.createElement('video')
-
-  call.on('stream', userVideoStrem => {
-    console.log('stream init')
-    addUserVideoStream(video, userVideoStrem)
-  })
-
-  call.on('close', () => {
-    console.log('stream close')
-    video.remove()
-  })
-
-  peers[userId] = call
-}
-
-initApp()
+init()
+handleFilters(videolElement)
