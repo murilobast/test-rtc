@@ -1,11 +1,13 @@
 const socket = io('/')
 const videoGrid = document.getElementById('video-grid')
-const videolElement = document.createElement('video')
+const localVideolElement = document.createElement('video')
+const remoteVideolElement = document.createElement('video')
 const filters = ['unset', 'sepia(1)', 'grayscale(1)', 'hue-rotate(300deg)', 'invert(1)'];
 let currentFilterIndex = 0;
 
-videolElement.muted = true
-videolElement.classList.add('me')
+localVideolElement.muted = true
+localVideolElement.classList.add('me')
+remoteVideolElement.classList.add('other')
 
 let peer;
 let userStream;
@@ -13,9 +15,8 @@ let remoteUserId;
 
 async function init() {
   userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-  videolElement.srcObject = userStream;
 
-  addUserVideoStream(videolElement, userStream)
+  addUserVideoStream(localVideolElement, userStream)
 
   socket.emit("join room", ROOM_ID);
 
@@ -31,8 +32,20 @@ async function init() {
   socket.on("offer", handleRecieveCall);
 
   socket.on("answer", handleAnswer);
+  
+  socket.on("leave room", handleUserDisconnected);
 
   socket.on("ice-candidate", handleNewICECandidateMsg);
+}
+
+function handleUserDisconnected() {
+  const currentRemoteVideoElement = document.querySelector('.other')
+
+  if (currentRemoteVideoElement) {
+    currentRemoteVideoElement.remove()
+    const remoteVideolElement = document.createElement('video')
+    remoteVideolElement.classList.add('other')
+  }
 }
 
 function callUser(userID) {
@@ -121,9 +134,7 @@ async function handleNewICECandidateMsg(incoming) {
 }
 
 function handleTrackEvent(e) {
-  video = document.createElement('video')
-  video.srcObject = e.streams[0];
-  addUserVideoStream(video, userStream)
+  addUserVideoStream(remoteVideolElement, e.streams[0])
 };
 
 function handleFilters(video) {
@@ -144,4 +155,4 @@ function addUserVideoStream(video, stream) {
 }
 
 init()
-handleFilters(videolElement)
+handleFilters(localVideolElement)
