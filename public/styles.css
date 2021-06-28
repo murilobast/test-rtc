@@ -37,3 +37,12 @@ video {
 .me {
   border-color: #6983d6;
 }
+
+.image {
+  width: 600px;
+  max-width: 95vw;
+}
+
+.hidden {
+  display: none;
+}

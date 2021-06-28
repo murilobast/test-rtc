@@ -1,5 +1,6 @@
 const socket = io('/')
 const videoGrid = document.getElementById('video-grid')
+const permissionGuide = document.querySelector('.permission')
 const localVideolElement = document.createElement('video')
 const remoteVideolElement = document.createElement('video')
 const filters = ['unset', 'sepia(1)', 'grayscale(1)', 'hue-rotate(300deg)', 'invert(1)']
@@ -17,8 +18,15 @@ let userStream
 let remoteUserId
 
 async function init() {
-  userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-
+  try {
+    userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    permissionGuide.classList.add('hidden')
+  } catch (e) {
+    permissionGuide.classList.remove('hidden')
+    handlePermissionChanges()
+    return
+  }
+  
   addUserVideoStream(localVideolElement, userStream)
 
   socket.emit('join room', ROOM_ID)
@@ -156,6 +164,19 @@ function addUserVideoStream(video, stream) {
     video.play()
   })
   videoGrid.append(video)
+}
+
+async function handlePermissionChanges() {
+  const permissionStatus = await navigator.permissions.query({ name:'camera' })
+  console.log('camera permission state is ', permissionStatus.state)
+
+  permissionStatus.onchange = function() {
+    console.log('camera permission state has changed to ', this.state)
+
+    if (this.state === 'granted') {
+      init()
+    }
+  }
 }
 
 init()
