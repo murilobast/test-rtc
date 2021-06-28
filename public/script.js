@@ -9,8 +9,8 @@ localVideolElement.muted = true
 localVideolElement.classList.add('me')
 remoteVideolElement.classList.add('other')
 
-localVideolElement.setAttribute("playsinline", true)
-remoteVideolElement.setAttribute("playsinline", true)
+localVideolElement.setAttribute('playsinline', true)
+remoteVideolElement.setAttribute('playsinline', true)
 
 let peer
 let userStream
@@ -21,24 +21,24 @@ async function init() {
 
   addUserVideoStream(localVideolElement, userStream)
 
-  socket.emit("join room", ROOM_ID)
+  socket.emit('join room', ROOM_ID)
 
   socket.on('other user', userID => {
       callUser(userID)
       remoteUserId = userID
   })
 
-  socket.on("user joined", userID => {
+  socket.on('user joined', userID => {
       remoteUserId = userID
   })
 
-  socket.on("offer", handleRecieveCall)
+  socket.on('offer', handleRecieveCall)
 
-  socket.on("answer", handleAnswer)
+  socket.on('answer', handleAnswer)
   
-  socket.on("leave room", handleUserDisconnected)
+  socket.on('leave room', handleUserDisconnected)
 
-  socket.on("ice-candidate", handleNewICECandidateMsg)
+  socket.on('ice-candidate', handleNewICECandidateMsg)
 }
 
 function handleUserDisconnected() {
@@ -48,7 +48,7 @@ function handleUserDisconnected() {
     currentRemoteVideoElement.remove()
     const remoteVideolElement = document.createElement('video')
     remoteVideolElement.classList.add('other')
-    remoteVideolElement.setAttribute("playsinline", true)
+    remoteVideolElement.setAttribute('playsinline', true)
   }
 }
 
@@ -61,7 +61,7 @@ function createPeer(userID) {
   const peer = new RTCPeerConnection({
       iceServers: [
           {
-              urls: "stun:stun.stunprotocol.org"
+              urls: 'stun:stun.stunprotocol.org'
           },
           {
               urls: 'turn:numb.viagenie.ca',
@@ -88,7 +88,7 @@ async function handleNegotiationNeededEvent(userID) {
         caller: socket.id,
         sdp: peer.localDescription
     }
-    socket.emit("offer", payload)
+    socket.emit('offer', payload)
   } catch (e) {
     console.log('handleNegotiationNeededEvent error', e)
   }
@@ -106,7 +106,7 @@ async function handleRecieveCall(incoming) {
       caller: socket.id,
       sdp: peer.localDescription
   }
-  socket.emit("answer", payload)
+  socket.emit('answer', payload)
 }
 
 async function handleAnswer(message) {
@@ -124,7 +124,7 @@ function handleICECandidateEvent(e) {
       target: remoteUserId,
       candidate: e.candidate,
     }
-    socket.emit("ice-candidate", payload)
+    socket.emit('ice-candidate', payload)
   }
 }
 
